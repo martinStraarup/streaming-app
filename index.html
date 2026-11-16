@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hvor streames den?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky søgebar øverst, resultatgitter under, panel glider ind fra højre (bund på mobil) */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --ink: #141a2b;
+  --muted: #5b6478;
+  --line: #d6dbe6;
+  --accent: #e08a12;
+  --accent-ink: #1a1204;
+  --chip: #e4e8f1;
+  --good: #1f8a54;
+  --danger: #c43d3d;
+  --shadow: 0 10px 30px rgba(20, 26, 43, .12);
+  --f-display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --f-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1220; --surface: #161d30; --ink: #e8ecf5; --muted: #98a1b6;
+    --line: #283149; --accent: #f2a33a; --accent-ink: #1a1204; --chip: #212a41;
+    --good: #4cc488; --danger: #ef7676; --shadow: 0 10px 30px rgba(0,0,0,.45); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1220; --surface: #161d30; --ink: #e8ecf5; --muted: #98a1b6;
+  --line: #283149; --accent: #f2a33a; --accent-ink: #1a1204; --chip: #212a41;
+  --good: #4cc488; --danger: #ef7676; --shadow: 0 10px 30px rgba(0,0,0,.45); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); min-height: 100vh; }
+[hidden] { display: none !important; }
+img { max-width: 100%; display: block; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap {
+  max-width: 1120px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+header.top {
+  position: sticky; top: 0; z-index: 5;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+header.top .wrap { padding-block: 18px 16px; display: grid; gap: 14px; }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+h1 { font: 700 clamp(20px, 3.4vw, 28px)/1.1 var(--f-display); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+h1 span { color: var(--accent); }
+.linkbtn {
+  background: none; border: 0; padding: 4px 0; cursor: pointer;
+  color: var(--muted); text-decoration: underline; text-underline-offset: 3px; font-size: 13px;
+}
+.controls { display: flex; gap: 10px; flex-wrap: wrap; }
+.search { flex: 1 1 320px; position: relative; }
+.search input {
+  width: 100%; padding: 13px 16px 13px 44px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 16px;
+}
+.search svg { position: absolute; left: 14px; top: 50%; translate: 0 -50%; width: 18px; height: 18px; color: var(--muted); }
+select#country {
+  flex: 0 1 230px; min-width: 0; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer;
+}
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: none; padding: 10px 14px; cursor: pointer; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+.btn {
+  border: 0; border-radius: 10px; padding: 10px 16px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); font-weight: 600;
+}
+.btn.ghost { background: var(--chip); color: var(--ink); font-weight: 500; }
+.btn.small { padding: 7px 12px; font-size: 14px; }
+.btn.danger { background: none; color: var(--danger); border: 1px solid currentColor; font-weight: 500; }
+
+.keybox {
+  margin-bottom: 28px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 16px; padding: 22px; display: grid; gap: 12px; max-width: 640px;
+}
+.keybox h2 { font: 600 17px/1.3 var(--f-display); margin: 0; }
+.keybox p { margin: 0; color: var(--muted); max-width: 62ch; }
+.keybox ol { margin: 0; padding-left: 20px; color: var(--muted); display: grid; gap: 4px; }
+.keybox a { color: var(--ink); }
+.keyrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.keyrow input { flex: 1 1 260px; min-width: 0; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-family: ui-monospace, monospace; font-size: 13px; }
+.err { color: var(--danger); font-size: 14px; }
+
+main .wrap { padding-block: 24px 60px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 16px; }
+.section-head h2 { font: 600 18px/1.3 var(--f-display); margin: 0; }
+.status { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+.grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.card { border: 0; padding: 0; text-align: left; cursor: pointer; background: none; display: grid; gap: 8px; align-content: start; }
+.poster {
+  aspect-ratio: 2 / 3; width: 100%; max-width: 100%;
+  border-radius: 10px; overflow: hidden; background: var(--chip);
+  position: relative; transition: transform .18s ease, box-shadow .18s ease;
+}
+.poster img { width: 100%; height: 100%; object-fit: cover; }
+.poster .noimg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 12px; padding: 10px; text-align: center; }
+.poster .gen {
+  position: absolute; inset: 0; display: grid; align-content: end; padding: 12px;
+  color: #fff; font: 700 15px/1.15 var(--f-display); text-wrap: balance;
+}
+.poster .gen b { font-size: 34px; line-height: 1; opacity: .9; margin-bottom: auto; display: block; padding-top: 28px; }
+.card:hover .poster, .card:focus-visible .poster { transform: translateY(-3px); box-shadow: var(--shadow); }
+.tag {
+  position: absolute; top: 8px; left: 8px;
+  background: var(--ink); color: var(--bg);
+  font-size: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600;
+  padding: 3px 7px; border-radius: 6px;
+}
+.tag.web { background: var(--accent); color: var(--accent-ink); }
+.card .t { font-weight: 600; line-height: 1.25; }
+.card .y { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.scrim { position: fixed; inset: 0; background: rgba(8, 11, 20, .5); z-index: 20; }
+.panel {
+  position: fixed; z-index: 21; top: 0; right: 0; bottom: 0;
+  width: min(540px, 100%); background: var(--surface); box-shadow: var(--shadow); overflow-y: auto;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) max(22px, env(safe-area-inset-right, 0px)) calc(32px + env(safe-area-inset-bottom, 0px)) 22px;
+  display: grid; gap: 20px; align-content: start;
+  animation: slide .22s ease;
+}
+@keyframes slide { from { transform: translateX(24px); opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .panel { animation: none; } .poster { transition: none; } }
+.close {
+  justify-self: end; border: 1px solid var(--line); background: var(--bg);
+  border-radius: 999px; width: 36px; height: 36px; cursor: pointer; font-size: 18px; line-height: 1;
+}
+.head { display: grid; grid-template-columns: 110px 1fr; gap: 16px; align-items: start; }
+.head .poster { border-radius: 8px; }
+.head .poster .gen { font-size: 11px; padding: 8px; }
+.head .poster .gen b { font-size: 26px; padding-top: 10px; }
+.head h2 { font: 700 20px/1.2 var(--f-display); margin: 0 0 6px; text-wrap: balance; }
+.meta { color: var(--muted); font-size: 13px; display: flex; gap: 6px; flex-wrap: wrap; }
+.overview { color: var(--muted); margin: 0; font-size: 14px; max-width: 65ch; }
+
+.where { display: grid; gap: 14px; }
+.where h3, .elsewhere h3, .form h3 {
+  margin: 0; font: 600 12px/1 var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+}
+.where-country { font: 600 16px/1.3 var(--f-display); margin: 0; }
+.group { display: grid; gap: 8px; }
+.providers { display: flex; flex-wrap: wrap; gap: 8px; }
+.prov {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--chip); border-radius: 10px; padding: 5px 10px 5px 5px; font-size: 14px;
+  color: var(--ink); text-decoration: none;
+}
+a.prov:hover { outline: 1px solid var(--accent); }
+a.prov::after { content: "↗"; color: var(--muted); font-size: 12px; }
+.prov img { width: 30px; height: 30px; border-radius: 7px; }
+.pbadge {
+  width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center;
+  color: #fff; font: 700 12px/1 var(--f-body);
+}
+.group.stream .prov { background: color-mix(in srgb, var(--good) 16%, var(--chip)); }
+.none { background: var(--chip); border-radius: 12px; padding: 14px; color: var(--muted); font-size: 14px; }
+.jw { font-size: 13px; color: var(--muted); margin: 0; }
+.jw a { color: var(--ink); }
+
+.elsewhere { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 18px; }
+.elsewhere p { margin: 0; font-size: 14px; color: var(--muted); }
+.countries { display: flex; flex-wrap: wrap; gap: 6px; }
+.cbtn { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
+.cbtn:hover { border-color: var(--accent); }
+.extras { display: grid; gap: 14px; border-top: 1px solid var(--line); padding-top: 18px; }
+.xlink {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); text-decoration: none; font-size: 14px;
+}
+.xlink::after { content: "↗"; color: var(--muted); font-size: 12px; }
+.xlink:hover { border-color: var(--accent); }
+.owner { display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 18px; }
+
+/* Formular */
+.form { display: grid; gap: 16px; }
+.form h2 { font: 700 20px/1.2 var(--f-display); margin: 0; }
+.form > p { margin: 0; color: var(--muted); font-size: 14px; }
+.field { display: grid; gap: 5px; }
+.field label { font-size: 13px; font-weight: 600; }
+.field small { color: var(--muted); font-size: 12px; }
+.field input, .field select, .field textarea, .linkrow input, .linkrow select {
+  width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+}
+.field textarea { resize: vertical; min-height: 70px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.linklist { display: grid; gap: 10px; }
+.linkrow {
+  display: grid; gap: 8px; grid-template-columns: 1fr 1fr; padding: 12px;
+  border: 1px solid var(--line); border-radius: 12px;
+}
+.linkrow .url { grid-column: 1 / -1; }
+.linkrow .rm { justify-self: end; grid-column: 1 / -1; }
+.formfoot { display: flex; gap: 10px; flex-wrap: wrap; }
+.mine { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 16px; }
+.mine ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.mine li button { background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.export textarea { width: 100%; min-height: 220px; font: 12px/1.45 ui-monospace, monospace; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+
+.empty { text-align: center; padding: 48px 0; color: var(--muted); }
+.empty strong { display: block; font: 600 18px/1.3 var(--f-display); color: var(--ink); margin-bottom: 6px; }
+
+footer { color: var(--muted); font-size: 12px; padding-block: 0 30px; }
+footer a { color: var(--muted); }
+
+@media (max-width: 560px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  select#country { flex: 1 1 100%; }
+  .panel { top: auto; width: 100%; max-height: 90vh; border-radius: 18px 18px 0 0; padding-left: max(18px, env(safe-area-inset-left, 0px)); }
+  .head { grid-template-columns: 84px 1fr; }
+  .two, .linkrow { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <h1>Hvor streames <span>den?</span></h1>
+      <div class="brand-actions">
+        <button class="btn small" id="addShow">+ Tilføj show</button>
+        <button class="linkbtn" id="changeKey" hidden>Skift API-nøgle</button>
+      </div>
+    </div>
+    <div class="controls">
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Søg efter film, serie eller webshow…" autocomplete="off" aria-label="Søg">
+      </label>
+      <select id="country" aria-label="Land"></select>
+      <div class="seg" role="group" aria-label="Type">
+        <button data-type="multi" aria-pressed="true">Alle</button>
+        <button data-type="movie" aria-pressed="false">Film</button>
+        <button data-type="tv" aria-pressed="false">Serier</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <section class="keybox" id="keybox" hidden>
+      <h2>Indtast din TMDB API-nøgle</h2>
+      <p>Film og serier hentes fra The Movie Database, som får sine streamingdata fra JustWatch. Webshows fra kataloget virker også uden nøgle.</p>
+      <ol>
+        <li>Opret en konto på <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener">themoviedb.org</a></li>
+        <li>Gå til <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">Indstillinger → API</a> og bed om en nøgle</li>
+        <li>Kopiér enten "API-nøgle" eller "API Read Access Token" herind</li>
+      </ol>
+      <form class="keyrow" id="keyform">
+        <input id="keyinput" type="text" placeholder="API-nøgle eller Read Access Token" spellcheck="false" autocomplete="off">
+        <button class="btn" type="submit">Gem nøgle</button>
+      </form>
+      <div class="err" id="keyerr" hidden></div>
+      <p style="font-size:13px">Nøglen gemmes kun i din egen browser.</p>
+    </section>
+
+    <div class="section-head" id="browseHead" hidden>
+      <h2>Gratis webshows og online-serier</h2>
+    </div>
+    <p class="status" id="status" hidden></p>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" hidden>
+      <strong>Find ud af hvor du kan se den</strong>
+      Skriv titlen på en film, serie eller et webshow, og vælg dit land.
+    </div>
+  </div>
+</main>
+
+<footer class="wrap">
+  Film og serier: data fra <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a> og <a href="https://www.justwatch.com" target="_blank" rel="noopener">JustWatch</a>. This product uses the TMDB API but is not endorsed or certified by TMDB. Webshows: eget katalog. Udbud kan ændre sig fra dag til dag.
+</footer>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel" id="panel" hidden aria-modal="true" role="dialog"></aside>
+
+<script src="shows.js"></script>
+<script>
+(() => {
+  const API = "https://api.themoviedb.org/3";
+  const IMG = "https://image.tmdb.org/t/p/";
+  const LANG = "da-DK";
+
+  const $ = s => document.querySelector(s);
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+  };
+  const loadJSON = (k, fb) => { try { return JSON.parse(store.get(k)) ?? fb; } catch { return fb; } };
+
+  const state = {
+    key: store.get("tmdb_key") || "",
+    country: store.get("country") || "DK",
+    type: "multi",
+    regions: [],
+    myShows: loadJSON("my_shows", []),
+    current: null
+  };
+  const catalog = () => [
+    ...(Array.isArray(window.SHOWS) ? window.SHOWS : []),
+    ...state.myShows.map(s => ({ ...s, local: true }))
+  ];
+
+  const GROUPS = [
+    ["flatrate", "Streaming i abonnement", "stream"],
+    ["free", "Gratis", "stream"],
+    ["ads", "Gratis med reklamer", "stream"],
+    ["rent", "Lej", ""],
+    ["buy", "Køb", ""]
+  ];
+  const KIND_LABEL = Object.fromEntries(GROUPS.map(([k, l]) => [k, l]));
+  const PLATFORMS = {
+    "YouTube": "#d61f1f", "Dailymotion": "#0d5bd6", "Vimeo": "#1a9fd1", "Twitch": "#8246e6",
+    "Nebula": "#2f6fe0", "Dropout": "#c9361f", "Tubi": "#e0501e", "Pluto TV": "#2b2d8f",
+    "Kick": "#2f9e44", "Hjemmeside": "#4b5568"
+  };
+
+  // ---------- Hjælpere ----------
+  const flag = cc => cc.toUpperCase().replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+  const countryName = cc => {
+    const r = state.regions.find(r => r.iso_3166_1 === cc);
+    if (r) return r.native_name || r.english_name;
+    try { return new Intl.DisplayNames(["da"], { type: "region" }).of(cc); } catch { return cc; }
+  };
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  const yearOf = item => item.year ? String(item.year) : (item.release_date || item.first_air_date || "").slice(0, 4);
+  const titleOf = item => item.title || item.name || "Ukendt titel";
+  const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "";
+  const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+  const initials = t => t.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  const genPoster = title => {
+    const h = hue(title);
+    return `<div class="gen" style="background:linear-gradient(160deg,hsl(${h} 55% 42%),hsl(${(h + 40) % 360} 60% 22%))"><b>${esc(initials(title))}</b>${esc(title)}</div>`;
+  };
+  const linkInCountry = (l, cc) => (l.countries || ["*"]).some(c => c === "*" || c.toUpperCase() === cc);
+
+  function setStatus(msg) { const el = $("#status"); el.hidden = !msg; el.textContent = msg || ""; }
+
+  // ---------- TMDB ----------
+  async function tmdb(path, params = {}) {
+    const url = new URL(API + path);
+    const isToken = state.key.startsWith("eyJ");
+    if (!isToken) url.searchParams.set("api_key", state.key);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    const res = await fetch(url, { headers: isToken ? { Authorization: "Bearer " + state.key, accept: "application/json" } : { accept: "application/json" } });
+    if (res.status === 401) throw Object.assign(new Error("Ugyldig API-nøgle"), { auth: true });
+    if (!res.ok) throw new Error("TMDB svarede med fejl " + res.status);
+    return res.json();
+  }
+
+  async function loadRegions() {
+    if (state.key) {
+      try {
+        const data = await tmdb("/watch/providers/regions", { language: LANG });
+        state.regions = data.results.sort((a, b) => (a.native_name || a.english_name).localeCompare(b.native_name || b.english_name, "da"));
+      } catch (e) { if (e.auth) throw e; }
+    }
+    if (!state.regions.length) {
+      state.regions = ["DK", "SE", "NO", "FI", "IS", "DE", "NL", "GB", "IE", "FR", "ES", "IT", "PL", "US", "CA", "AU"]
+        .map(cc => ({ iso_3166_1: cc, native_name: countryName(cc) }));
+    }
+    const sel = $("#country");
+    sel.innerHTML = state.regions.map(r => `<option value="${r.iso_3166_1}">${flag(r.iso_3166_1)} ${esc(r.native_name || r.english_name)}</option>`).join("");
+    if (!state.regions.some(r => r.iso_3166_1 === state.country)) state.country = "DK";
+    sel.value = state.country;
+  }
+
+  // ---------- Kort ----------
+  function catCard(s) {
+    return `<button class="card" data-src="cat" data-id="${esc(s.id)}">
+      <div class="poster">
+        ${safeUrl(s.poster) ? `<img src="${esc(s.poster)}" alt="" loading="lazy">` : genPoster(s.title)}
+        <span class="tag web">Webshow</span>
+      </div>
+      <span class="t">${esc(s.title)}</span>
+      <span class="y">${esc(yearOf(s) || "—")} · ${esc([...new Set((s.links || []).map(l => l.platform))].join(", "))}</span>
+    </button>`;
+  }
+  function tmdbCard(item) {
+    return `<button class="card" data-src="tmdb" data-id="${item.id}" data-media="${item.media_type}">
+      <div class="poster">
+        ${item.poster_path ? `<img src="${IMG}w342${item.poster_path}" alt="" loading="lazy">` : `<div class="noimg">${esc(titleOf(item))}</div>`}
+        <span class="tag">${item.media_type === "tv" ? "Serie" : "Film"}</span>
+      </div>
+      <span class="t">${esc(titleOf(item))}</span>
+      <span class="y">${yearOf(item) || "—"}</span>
+    </button>`;
+  }
+
+  function showBrowse() {
+    const shows = catalog().filter(s => state.type === "multi" || s.type === state.type);
+    $("#browseHead").hidden = !shows.length;
+    $("#empty").hidden = !!shows.length;
+    setStatus("");
+    $("#grid").innerHTML = shows.map(catCard).join("");
+  }
+
+  // ---------- Søgning ----------
+  let searchTimer, searchSeq = 0;
+  async function search() {
+    const q = $("#q").value.trim();
+    if (!q) return showBrowse();
+    $("#browseHead").hidden = true; $("#empty").hidden = true;
+    const seq = ++searchSeq;
+    const nq = norm(q);
+    const cat = catalog().filter(s =>
+      (state.type === "multi" || s.type === state.type) &&
+      [s.title, ...(s.aliases || [])].some(t => norm(t).includes(nq)));
+
+    let items = [];
+    if (state.key) {
+      setStatus("Søger…");
+      try {
+        const data = await tmdb(`/search/${state.type}`, { query: q, language: LANG, include_adult: "false" });
+        if (seq !== searchSeq) return;
+        items = data.results.map(r => ({ ...r, media_type: r.media_type || state.type }))
+          .filter(r => r.media_type === "movie" || r.media_type === "tv");
+      } catch (e) { if (seq === searchSeq) handleError(e); }
+    }
+    if (seq !== searchSeq) return;
+    // Katalog-shows der allerede er koblet til et TMDB-resultat vises kun én gang
+    const tmdbKeys = new Set(items.map(i => i.media_type + i.id));
+    const catOnly = cat.filter(s => !(s.tmdb && tmdbKeys.has(s.tmdb.media + s.tmdb.id)));
+
+    const total = catOnly.length + items.length;
+    if (!total) { $("#grid").innerHTML = ""; setStatus(`Ingen resultater for "${q}".` + (state.key ? "" : " Tilføj en TMDB-nøgle for at søge i film og serier.")); return; }
+    setStatus(`${total} resultater · tryk på en titel for at se hvor den kan ses i ${countryName(state.country)}`);
+    $("#grid").innerHTML = catOnly.map(catCard).join("") + items.map(tmdbCard).join("");
+  }
+
+  // ---------- Detaljer ----------
+  function openPanel(html, label) {
+    const panel = $("#panel");
+    panel.setAttribute("aria-label", label);
+    panel.innerHTML = `<button class="close" aria-label="Luk">×</button>` + html;
+    panel.hidden = false; $("#scrim").hidden = false; panel.scrollTop = 0;
+    panel.querySelector(".close").focus();
+  }
+  function closePanel() { $("#panel").hidden = true; $("#scrim").hidden = true; state.current = null; }
+
+  async function openTmdb(id, media) {
+    openPanel(`<p class="status">Henter…</p>`, "Streamingdetaljer");
+    try {
+      const [info, prov] = await Promise.all([tmdb(`/${media}/${id}`, { language: LANG }), tmdb(`/${media}/${id}/watch/providers`)]);
+      const linked = catalog().filter(s => s.tmdb && String(s.tmdb.id) === String(id) && s.tmdb.media === media);
+      state.current = { src: "tmdb", id, media, info, providers: prov.results || {}, linked };
+      renderDetail();
+    } catch (e) { closePanel(); handleError(e); }
+  }
+  function openCat(id) {
+    const s = catalog().find(s => s.id === id);
+    if (!s) return;
+    state.current = { src: "cat", show: s };
+    openPanel("", "Showdetaljer");
+    renderDetail();
+  }
+
+  const tmdbChips = list => [...list]
+    .sort((a, b) => (a.display_priority ?? 99) - (b.display_priority ?? 99))
+    .map(p => `<span class="prov">${p.logo_path ? `<img src="${IMG}w92${p.logo_path}" alt="">` : ""}${esc(p.provider_name)}</span>`).join("");
+  const linkChip = l => {
+    const color = PLATFORMS[l.platform] || "#4b5568";
+    const badge = `<span class="pbadge" style="background:${color}">${esc(initials(l.platform || "?"))}</span>`;
+    const url = safeUrl(l.url);
+    return url
+      ? `<a class="prov" href="${esc(url)}" target="_blank" rel="noopener">${badge}${esc(l.platform)}</a>`
+      : `<span class="prov">${badge}${esc(l.platform)}</span>`;
+  };
+
+  function renderDetail() {
+    const c = state.current; if (!c) return;
+    const cc = state.country;
+
+    let title, poster, meta, overview, groups = {}, others = new Set(), worldwide = false, jwLink = "";
+    const extras = [], merch = [];
+    const addExtras = s => { extras.push(...(s.extras || [])); merch.push(...(s.merch || [])); };
+    const addLinks = links => (links || []).forEach(l => {
+      if (linkInCountry(l, cc)) (groups[l.kind || "free"] ||= []).push({ link: l });
+      (l.countries || ["*"]).forEach(x => x === "*" ? (worldwide = true) : x.toUpperCase() !== cc && others.add(x.toUpperCase()));
+    });
+
+    if (c.src === "tmdb") {
+      const { info, media, providers, linked } = c;
+      title = titleOf(info);
+      poster = info.poster_path ? `<img src="${IMG}w342${info.poster_path}" alt="">` : "";
+      meta = [media === "tv" ? "Serie" : "Film", yearOf(info),
+        media === "tv" && info.number_of_seasons ? `${info.number_of_seasons} sæson${info.number_of_seasons > 1 ? "er" : ""}` : "",
+        media === "movie" && info.runtime ? `${info.runtime} min` : "",
+        info.vote_average ? `★ ${info.vote_average.toFixed(1)}` : ""];
+      overview = linked.find(s => s.overview)?.overview || info.overview;
+      if (safeUrl(info.homepage)) extras.push({ label: "Officiel hjemmeside", url: info.homepage });
+      linked.forEach(addExtras);
+      const here = providers[cc] || {};
+      GROUPS.forEach(([k]) => (here[k] || []).forEach(p => (groups[k] ||= []).push({ tmdb: p })));
+      jwLink = here.link || "";
+      Object.entries(providers).forEach(([x, v]) => { if (x !== cc && (v.flatrate?.length || v.free?.length || v.ads?.length)) others.add(x); });
+      linked.forEach(s => addLinks(s.links));
+    } else {
+      const s = c.show;
+      title = s.title;
+      poster = safeUrl(s.poster) ? `<img src="${esc(s.poster)}" alt="">` : genPoster(s.title);
+      meta = [s.type === "movie" ? "Film" : "Serie", yearOf(s), "Webshow", s.local ? "Kun i din browser" : ""];
+      overview = s.overview;
+      addLinks(s.links);
+      addExtras(s);
+    }
+
+    const dedupe = list => list.filter((l, i) => safeUrl(l.url) && list.findIndex(x => x.url === l.url) === i);
+    const xlinks = list => list.map(l =>
+      `<a class="xlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || l.url)}</a>`).join("");
+    const extrasHtml = [
+      [dedupe(extras), "Links"],
+      [dedupe(merch), "Merch"]
+    ].filter(([l]) => l.length).map(([l, h]) => `
+      <div class="group"><h3>${h}</h3><div class="providers">${xlinks(l)}</div></div>`).join("");
+
+    const present = GROUPS.filter(([k]) => groups[k]?.length);
+    const whereHtml = present.length
+      ? present.map(([k, label, cls]) => `
+          <div class="group ${cls}">
+            <h3>${label}</h3>
+            <div class="providers">
+              ${tmdbChips(groups[k].filter(x => x.tmdb).map(x => x.tmdb))}
+              ${groups[k].filter(x => x.link).map(x => linkChip(x.link)).join("")}
+            </div>
+          </div>`).join("")
+        + (jwLink ? `<p class="jw">Direkte links til abonnementstjenester findes på <a href="${esc(jwLink)}" target="_blank" rel="noopener">TMDB/JustWatch</a>.</p>` : "")
+      : `<div class="none">Ikke tilgængelig i ${esc(countryName(cc))} lige nu.</div>`;
+
+    const otherList = [...others].sort((a, b) => countryName(a).localeCompare(countryName(b), "da"));
+    let elsewhere = "";
+    if (worldwide) {
+      elsewhere = `<div class="elsewhere"><h3>Tilgængelighed</h3><p>Mindst ét link virker i hele verden.</p></div>`;
+    } else if (otherList.length) {
+      elsewhere = `<div class="elsewhere">
+        <h3>Kan ses i ${otherList.length} andre lande</h3>
+        <p>Tryk på et land for at se tjenesterne der.</p>
+        <div class="countries">${otherList.map(x => `<button class="cbtn" data-cc="${x}">${flag(x)} ${esc(countryName(x))}</button>`).join("")}</div>
+      </div>`;
+    }
+
+    const owner = c.src === "cat" && c.show.local ? `
+      <div class="owner">
+        <button class="btn ghost small" data-act="edit">Redigér</button>
+        <button class="btn danger small" data-act="delete">Slet fra mine shows</button>
+      </div>` : "";
+
+    const panel = $("#panel");
+    panel.innerHTML = `
+      <button class="close" aria-label="Luk">×</button>
+      <div class="head">
+        <div class="poster">${poster}</div>
+        <div>
+          <h2>${esc(title)}</h2>
+          <div class="meta">${meta.filter(Boolean).map(esc).join(" · ")}</div>
+        </div>
+      </div>
+      ${overview ? `<p class="overview">${esc(overview)}</p>` : ""}
+      <section class="where">
+        <p class="where-country">${flag(cc)} ${esc(countryName(cc))}</p>
+        ${whereHtml}
+      </section>
+      ${elsewhere}
+      ${extrasHtml ? `<section class="extras">${extrasHtml}</section>` : ""}
+      ${owner}`;
+  }
+
+  // ---------- Tilføj / redigér show ----------
+  const platformOptions = sel => Object.keys(PLATFORMS).map(p => `<option${p === sel ? " selected" : ""}>${p}</option>`).join("");
+  const kindOptions = sel => GROUPS.map(([k, l]) => `<option value="${k}"${k === sel ? " selected" : ""}>${l}</option>`).join("");
+  const linkRow = (l = {}, i = Date.now() + Math.random()) => {
+    const isWorld = !l.countries || l.countries.includes("*");
+    const rid = String(i).replace(".", "");
+    return `<div class="linkrow">
+      <select aria-label="Platform" id="lp-${rid}" data-f="platform">${platformOptions(l.platform || "YouTube")}</select>
+      <select aria-label="Type" id="lk-${rid}" data-f="kind">${kindOptions(l.kind || "free")}</select>
+      <input class="url" type="url" id="lu-${rid}" data-f="url" placeholder="https://www.youtube.com/@kanal eller playliste" value="${esc(l.url || "")}" required>
+      <input class="url" type="text" id="lc-${rid}" data-f="countries" placeholder="Lande, fx DK, SE, NO · tom = hele verden" value="${isWorld ? "" : esc(l.countries.join(", "))}">
+      <button type="button" class="linkbtn rm">Fjern link</button>
+    </div>`;
+  };
+
+  const pairsToText = list => (list || []).map(l => `${l.label} | ${l.url}`).join("\n");
+  const textToPairs = txt => txt.split("\n").map(line => {
+    const m = line.match(/^(.*?)\s*\|\s*(https?:\/\/\S+)\s*$/i) || line.match(/^()\s*(https?:\/\/\S+)\s*$/i);
+    if (!m) return null;
+    let label = m[1].trim();
+    if (!label) { try { label = new URL(m[2]).hostname.replace(/^www\./, ""); } catch { label = m[2]; } }
+    return { label, url: m[2] };
+  }).filter(Boolean);
+
+  function openForm(existing) {
+    const s = existing || {};
+    const mine = state.myShows;
+    openPanel(`
+      <form class="form" id="showForm" novalidate>
+        <h2>${existing ? "Redigér show" : "Tilføj show"}</h2>
+        <p>Til webshows og serier fra YouTube, Dailymotion, Twitch og lignende. Showet gemmes i din browser. Brug "Eksportér" for at lægge det i shows.js, så alle kan se det.</p>
+        <div class="field"><label for="f-title">Titel</label><input id="f-title" required value="${esc(s.title || "")}"></div>
+        <div class="field"><label for="f-aliases">Andre navne</label><input id="f-aliases" placeholder="Adskil med komma" value="${esc((s.aliases || []).join(", "))}"></div>
+        <div class="two">
+          <div class="field"><label for="f-type">Type</label>
+            <select id="f-type"><option value="tv"${s.type !== "movie" ? " selected" : ""}>Serie</option><option value="movie"${s.type === "movie" ? " selected" : ""}>Film</option></select></div>
+          <div class="field"><label for="f-year">År</label><input id="f-year" inputmode="numeric" maxlength="4" value="${esc(s.year || "")}"></div>
+        </div>
+        <div class="field"><label for="f-poster">Plakat-URL</label><input id="f-poster" type="url" placeholder="Valgfri" value="${esc(s.poster || "")}"></div>
+        <div class="field"><label for="f-overview">Kort beskrivelse</label><textarea id="f-overview" maxlength="400" placeholder="Et par sætninger om showet">${esc(s.overview || "")}</textarea></div>
+        <div class="field"><label for="f-tmdb">Kobl til TMDB-titel</label>
+          <input id="f-tmdb" placeholder="Valgfri: indsæt TMDB-adressen, fx themoviedb.org/tv/1399" value="${s.tmdb ? `https://www.themoviedb.org/${s.tmdb.media}/${s.tmdb.id}` : ""}">
+          <small>Så vises dine links sammen med TMDB's streamingtjenester for den titel.</small></div>
+        <h3>Hvor kan det ses?</h3>
+        <div class="linklist" id="linklist">${(s.links?.length ? s.links : [{}]).map((l, i) => linkRow(l, i)).join("")}</div>
+        <button type="button" class="btn ghost small" id="addLink" style="justify-self:start">+ Tilføj link</button>
+        <div class="field"><label for="f-extras">Andre links</label>
+          <textarea id="f-extras" placeholder="Officiel hjemmeside | https://…&#10;Instagram | https://instagram.com/…">${esc(pairsToText(s.extras))}</textarea>
+          <small>Én pr. linje: navn | URL. Fx hjemmeside, sociale medier, Discord eller wiki.</small></div>
+        <div class="field"><label for="f-merch">Merch</label>
+          <textarea id="f-merch" placeholder="Officiel shop | https://…">${esc(pairsToText(s.merch))}</textarea>
+          <small>Én butik pr. linje: navn | URL.</small></div>
+        <div class="err" id="formErr" hidden></div>
+        <div class="formfoot">
+          <button class="btn" type="submit">${existing ? "Gem ændringer" : "Gem show"}</button>
+          <button class="btn ghost" type="button" id="exportBtn"${mine.length ? "" : " hidden"}>Eksportér mine shows</button>
+        </div>
+        ${mine.length ? `<div class="mine"><h3>Mine shows (${mine.length})</h3><ul>${mine.map(m => `<li><button type="button" data-open="${esc(m.id)}">${esc(m.title)}</button></li>`).join("")}</ul></div>` : ""}
+      </form>`, existing ? "Redigér show" : "Tilføj show");
+    state.current = { src: "form", editId: existing?.id };
+    $("#f-title").focus();
+  }
+
+  function readForm() {
+    const title = $("#f-title").value.trim();
+    const links = [...document.querySelectorAll("#linklist .linkrow")].map(r => {
+      const g = f => r.querySelector(`[data-f="${f}"]`).value.trim();
+      const cs = g("countries").split(/[\s,;]+/).map(x => x.toUpperCase()).filter(x => /^[A-Z]{2}$/.test(x));
+      return { platform: g("platform"), url: g("url"), kind: g("kind"), countries: cs.length ? cs : ["*"] };
+    }).filter(l => l.url);
+    if (!title) return { err: "Showet skal have en titel." };
+    if (!links.length) return { err: "Tilføj mindst ét link." };
+    if (links.some(l => !safeUrl(l.url))) return { err: "Links skal starte med https:// eller http://" };
+    const tm = $("#f-tmdb").value.match(/(movie|tv)\/(\d+)/);
+    const year = parseInt($("#f-year").value, 10);
+    const show = {
+      id: state.current.editId || "mit-" + norm(title).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now().toString(36),
+      title,
+      type: $("#f-type").value,
+      links
+    };
+    const aliases = $("#f-aliases").value.split(",").map(x => x.trim()).filter(Boolean);
+    if (aliases.length) show.aliases = aliases;
+    if (year > 1880 && year < 2100) show.year = year;
+    if (safeUrl($("#f-poster").value.trim())) show.poster = $("#f-poster").value.trim();
+    if ($("#f-overview").value.trim()) show.overview = $("#f-overview").value.trim();
+    if (tm) show.tmdb = { id: Number(tm[2]), media: tm[1] };
+    const extras = textToPairs($("#f-extras").value), merch = textToPairs($("#f-merch").value);
+    if (extras.length) show.extras = extras;
+    if (merch.length) show.merch = merch;
+    return { show };
+  }
+
+  function saveMine() { store.set("my_shows", JSON.stringify(state.myShows)); }
+
+  function openExport() {
+    const json = JSON.stringify(state.myShows, null, 2);
+    openPanel(`
+      <div class="form export">
+        <h2>Eksportér mine shows</h2>
+        <p>Kopiér teksten og indsæt objekterne i listen <code>window.SHOWS = [ … ]</code> i shows.js. Så kan alle, der bruger appen, se dem.</p>
+        <textarea id="exportText" readonly>${esc(json)}</textarea>
+        <div class="formfoot"><button class="btn" id="copyExport" type="button">Kopiér</button><button class="btn ghost" id="backToForm" type="button">Tilbage</button></div>
+      </div>`, "Eksportér");
+    state.current = { src: "export" };
+  }
+
+  // ---------- Fejl / nøgle ----------
+  function handleError(e) {
+    if (e.auth) { showKeyBox("Nøglen blev afvist af TMDB. Tjek at den er kopieret korrekt."); return; }
+    setStatus(navigator.onLine === false ? "Du er offline." : `Noget gik galt: ${e.message}`);
+  }
+  function showKeyBox(err) {
+    $("#keybox").hidden = false;
+    $("#changeKey").hidden = true;
+    $("#keyinput").value = state.key;
+    const el = $("#keyerr"); el.hidden = !err; el.textContent = err || "";
+  }
+
+  async function start() {
+    try {
+      await loadRegions();
+      $("#keybox").hidden = !!state.key;
+      $("#changeKey").hidden = !state.key;
+      if (!state.key) showKeyBox();
+    } catch (e) { handleError(e); }
+    search();
+  }
+
+  // ---------- Events ----------
+  $("#keyform").addEventListener("submit", e => {
+    e.preventDefault();
+    state.key = $("#keyinput").value.trim();
+    if (!state.key) return;
+    store.set("tmdb_key", state.key);
+    state.regions = [];
+    start();
+  });
+  $("#changeKey").addEventListener("click", () => showKeyBox());
+  $("#addShow").addEventListener("click", () => openForm());
+
+  $("#q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(search, 300); });
+
+  $("#country").addEventListener("change", e => {
+    state.country = e.target.value;
+    store.set("country", state.country);
+    if (state.current && (state.current.src === "tmdb" || state.current.src === "cat")) renderDetail();
+    if ($("#q").value.trim()) search();
+  });
+
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    state.type = b.dataset.type;
+    search();
+  }));
+
+  $("#grid").addEventListener("click", e => {
+    const card = e.target.closest(".card");
+    if (!card) return;
+    if (card.dataset.src === "cat") openCat(card.dataset.id);
+    else openTmdb(card.dataset.id, card.dataset.media);
+  });
+
+  const panel = $("#panel");
+  panel.addEventListener("click", e => {
+    const t = e.target;
+    if (t.closest(".close")) return closePanel();
+    const cb = t.closest(".cbtn");
+    if (cb) {
+      state.country = cb.dataset.cc;
+      $("#country").value = state.country;
+      store.set("country", state.country);
+      renderDetail(); panel.scrollTop = 0; return;
+    }
+    if (t.closest("#addLink")) return $("#linklist").insertAdjacentHTML("beforeend", linkRow());
+    if (t.closest(".rm")) {
+      const rows = document.querySelectorAll("#linklist .linkrow");
+      if (rows.length > 1) t.closest(".linkrow").remove();
+      return;
+    }
+    if (t.closest("#exportBtn")) return openExport();
+    if (t.closest("#backToForm")) return openForm();
+    if (t.closest("#copyExport")) {
+      const ta = $("#exportText"), btn = $("#copyExport");
+      navigator.clipboard.writeText(ta.value).then(() => { btn.textContent = "Kopieret"; })
+        .catch(() => { ta.focus(); ta.select(); btn.textContent = "Markeret – tryk Ctrl/Cmd+C"; });
+      return;
+    }
+    const op = t.closest("[data-open]");
+    if (op) return openCat(op.dataset.open);
+    const act = t.closest("[data-act]")?.dataset.act;
+    if (act === "edit") return openForm(state.myShows.find(s => s.id === state.current.show.id));
+    if (act === "delete") {
+      const btn = t.closest("[data-act]");
+      if (btn.dataset.armed) {
+        state.myShows = state.myShows.filter(s => s.id !== state.current.show.id);
+        saveMine(); closePanel(); search();
+      } else {
+        btn.dataset.armed = "1"; btn.textContent = "Tryk igen for at slette";
+      }
+    }
+  });
+
+  panel.addEventListener("submit", e => {
+    if (e.target.id !== "showForm") return;
+    e.preventDefault();
+    const { show, err } = readForm();
+    const errEl = $("#formErr");
+    if (err) { errEl.hidden = false; errEl.textContent = err; return; }
+    const i = state.myShows.findIndex(s => s.id === show.id);
+    if (i >= 0) state.myShows[i] = show; else state.myShows.push(show);
+    saveMine();
+    search();
+    openCat(show.id);
+  });
+
+  $("#scrim").addEventListener("click", closePanel);
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !panel.hidden) closePanel(); });
+
+  start();
+})();
+</script>
+</body>
+</html>
